@@ -107,7 +107,7 @@ type AcquireLockInput struct {
 	LeaseDuration *time.Duration
 }
 
-// AcquireAnyLockInput is the input to AcquireLock
+// AcquireAnyLockInput is the input to AcquireAnyLock
 type AcquireAnyLockInput struct {
 	// Keys is required
 	Keys []string
