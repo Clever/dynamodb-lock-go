@@ -1,3 +1,6 @@
+// package lock provides a client library for using a DynamoDB table as a distributed locking mechansim.
+//
+// The entrypoint is the Locker interface and the constructor NewLocker.
 package lock
 
 import (
@@ -10,13 +13,19 @@ import (
 )
 
 // Locker is an interface for acquiring and releasing locks on keys with support for automatic lock expiration via leases.
-// Locker knows about three kinds of resources: keys, owners, and locks.
-// A key is just a string, as far as locker is concerned. A client can attach its own meaning to the key.
-// Likewise an owner is just a string. A client can attach its own meaning and format to owner strings, and should ensure different logical units (goroutines or whatnot) have different owner strings.
-// A lock is a representation of exclusive access for a particular owner to a particular key. It has its own type: Lock.
+//
+// Locker knows about three kinds of resources: keys, owners, and locks:
+//
+// - A key is just a string, as far as locker is concerned. A client can attach its own meaning to the key.
+//
+// - Likewise an owner is just a string. A client can attach its own meaning and format to owner strings, and should ensure different logical units (goroutines or whatnot) have different owner strings.
+//
+// - A lock is a representation of exclusive access for a particular owner to a particular key. It has its own type: Lock.
+//
 // All locks have an end time at which they are considered no longer valid. The period of time in which a lock is valid is called the "lease."
 // Leases prevent a lock from being held indefinitely by an owner which has crashed or otherwise finished without releasing the lock.
 // Leases are stored as a specific point in time. Clients are responsible for ensuring that their clocks are synchronized; a small grace period allows small (~seconds) desyncs.
+//
 // The authoritative way to determine if a lock is still valid is to talk to the server by attempting to heartbeat the lock.
 type Locker interface {
 	// AcquireLock attepts to get the lock for a given input key. A lock can be acquired if there is not an active lease by a different owner.
