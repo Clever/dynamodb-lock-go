@@ -16,27 +16,14 @@ commands:
         name: Clone ci-scripts
 
 jobs:
-  build:
-    executor: common-executor
-    steps:
-    - checkout
-    - run: make build
-    - persist_to_workspace:
-        root: ~/Clever
-        paths: "."
-
   unit-test:
     executor: common-executor
     steps:
-    - attach_workspace:
-        at: ~/Clever
+    - checkout
     - run: make test
 
 workflows:
   version: 2.1
-  build_test_publish_deploy:
+  test:
     jobs:
-    - build
-    - unit-test:
-        requires:
-        - build
+    - unit-test
