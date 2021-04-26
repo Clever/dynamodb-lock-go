@@ -1,0 +1,47 @@
+version: 2.1
+
+executors:
+  common-executor:
+    working_directory: ~/Clever/dynamodb-lock-go
+    docker:
+    - image: circleci/golang:1.16
+    environment:
+      CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
+      CIRCLE_TEST_REPORTS: /tmp/circleci-test-results
+
+commands:
+  clone-ci-scripts:
+    description: Clone the ci-scripts repo
+    steps:
+    - run:
+        command: cd .. && git clone --depth 1 -v https://github.com/Clever/ci-scripts.git && cd ci-scripts && git show --oneline -s
+        name: Clone ci-scripts
+
+jobs:
+  build:
+    executor: common-executor
+    steps:
+    - checkout
+    - run: make build
+    - persist_to_workspace:
+        root: ~/Clever
+        paths: "."
+
+  unit-test:
+    executor: common-executor
+    steps:
+    - attach_workspace:
+        at: ~/Clever
+    - run:
+        command: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
+        name: Set up CircleCI artifacts directories
+    - run: make test
+
+workflows:
+  version: 2.1
+  build_test_publish_deploy:
+    jobs:
+    - build
+    - unit-test:
+        requires:
+        - build
