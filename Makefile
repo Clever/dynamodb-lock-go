@@ -2,7 +2,7 @@ include golang.mk
 
 .PHONY: all test
 SHELL := /bin/bash
-PKGS := $(shell go list ./... | grep -v /vendor | grep -v /gen-go)
+PKGS := $(shell go list ./... | grep -v /vendor)
 
 all: test
 
@@ -17,6 +17,6 @@ integration-test:
 	INTEGRATION_TEST=true go test -v . -count 1 -timeout 0
 
 $(PKGS): golang-test-all-deps
-	$(call golang-test-all,$@)
+	$(call golang-test-all-strict,$@)
 
 test: $(PKGS) integration-test

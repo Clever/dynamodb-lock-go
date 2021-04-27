@@ -24,7 +24,7 @@ func TestLocker(t *testing.T) {
 	dynamoService := dynamodb.New(session.Must(session.NewSessionWithOptions(session.Options{
 		Config: aws.Config{
 			Region:   aws.String("us-west-1"),
-			Endpoint: aws.String("http://localhost:8800"),
+			Endpoint: aws.String("http://localhost:8000"),
 		},
 	})))
 	tableName := "EnvironmentLocks"

@@ -2,9 +2,12 @@ version: 2.1
 
 executors:
   common-executor:
-    working_directory: ~/Clever/dynamodb-lock-go
+    working_directory: /go/src/github.com/Clever/dynamodb-lock-go
     docker:
     - image: circleci/golang:1.16
+      environment:
+        AWS_ACCESS_KEY_ID: 'DUMMYIDEXAMPLE'
+        AWS_SECRET_ACCESS_KEY: 'DUMMYEXAMPLEKEY'
     - image: amazon/dynamodb-local
 
 commands:

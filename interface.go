@@ -1,4 +1,4 @@
-// package lock provides a client library for using a DynamoDB table as a distributed locking mechansim.
+// Package lock provides a client library for using a DynamoDB table as a distributed locking mechansim.
 //
 // The entrypoint is the Locker interface and the constructor NewLocker.
 package lock
