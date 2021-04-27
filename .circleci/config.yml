@@ -19,14 +19,18 @@ commands:
         name: Clone ci-scripts
 
 jobs:
-  unit-test:
+  main:
     executor: common-executor
     steps:
     - checkout
     - run: make test
-
+    - when:
+        condition:
+          equal: [ master, << pipeline.git.branch >> ]
+        steps:
+        - run: $HOME/ci-scripts/circleci/github-release $GH_RELEASE_TOKEN; fi;
 workflows:
   version: 2.1
-  test:
+  main:
     jobs:
-    - unit-test
+    - main
