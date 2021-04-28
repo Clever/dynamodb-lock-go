@@ -1,0 +1,36 @@
+version: 2.1
+
+executors:
+  common-executor:
+    working_directory: /go/src/github.com/Clever/dynamodb-lock-go
+    docker:
+    - image: circleci/golang:1.16
+      environment:
+        AWS_ACCESS_KEY_ID: 'DUMMYIDEXAMPLE'
+        AWS_SECRET_ACCESS_KEY: 'DUMMYEXAMPLEKEY'
+    - image: amazon/dynamodb-local
+
+commands:
+  clone-ci-scripts:
+    description: Clone the ci-scripts repo
+    steps:
+    - run:
+        command: cd .. && git clone --depth 1 -v https://github.com/Clever/ci-scripts.git && cd ci-scripts && git show --oneline -s
+        name: Clone ci-scripts
+
+jobs:
+  main:
+    executor: common-executor
+    steps:
+    - checkout
+    - run: make test
+    - when:
+        condition:
+          equal: [ master, << pipeline.git.branch >> ]
+        steps:
+        - run: $HOME/ci-scripts/circleci/github-release $GH_RELEASE_TOKEN; fi;
+workflows:
+  version: 2.1
+  main:
+    jobs:
+    - main
