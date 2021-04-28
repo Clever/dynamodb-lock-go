@@ -28,6 +28,7 @@ jobs:
         condition:
           equal: [ master, << pipeline.git.branch >> ]
         steps:
+        - clone-ci-scripts
         - run: $HOME/ci-scripts/circleci/github-release $GH_RELEASE_TOKEN
 workflows:
   version: 2.1
