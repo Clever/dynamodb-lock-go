@@ -67,6 +67,7 @@ type Lock struct {
 	Key         string    `dynamodbav:"key"`
 	Owner       string    `dynamodbav:"owner"`
 	LeasedUntil time.Time `dynamodbav:"leasedUntil"`
+	CreatedAt   time.Time `dynamodbav:"createdAt"`
 	TTL         time.Time `dynamodbav:"ttl"`
 }
 

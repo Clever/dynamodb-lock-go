@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"gopkg.in/Clever/kayvee-go.v6/logger"
@@ -318,6 +319,48 @@ func TestLocker(t *testing.T) {
 				} else if _, ok := err.(UnavailableError); !ok {
 					t.Fatalf("wrong error type when attempting to heartbeat in-use lock")
 				}
+			},
+		},
+		{
+			description: "acquiring a lock sets CreatedAt",
+			testFn: func(t *testing.T) {
+				ctx := context.Background()
+				duration := 5 * time.Minute
+				input := AcquireLockInput{
+					Key:           "key1",
+					Owner:         "owner1",
+					LeaseDuration: &duration,
+				}
+				now := time.Now()
+				l := AcquireAndValidate(ctx, t, locker, input)
+				assert.WithinDuration(t, now, l.CreatedAt, 500*time.Millisecond)
+			},
+		},
+		{
+			description: "heartbeating a lock we own resets created at",
+			testFn: func(t *testing.T) {
+				ctx := context.Background()
+				duration := 5 * time.Minute
+				input := AcquireLockInput{
+					Key:           "key1",
+					Owner:         "owner1",
+					LeaseDuration: &duration,
+				}
+
+				AcquireAndValidate(ctx, t, locker, input)
+
+				lock := Lock{
+					Key:   "key1",
+					Owner: "owner1",
+				}
+				time.Sleep(1 * time.Second)
+				now := time.Now()
+				newLock, _ := locker.HeartbeatLock(ctx, HeartbeatLockInput{
+					OriginalLock:  lock,
+					LeaseDuration: &duration,
+				})
+
+				assert.WithinDuration(t, now, newLock.CreatedAt, 500*time.Millisecond)
 			},
 		},
 	}

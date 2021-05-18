@@ -1,3 +1,6 @@
-v0.1.0
+v0.2.0
 
-Initial release!
+Add createdAt to locks
+
+Previously:
+- Initial release!
