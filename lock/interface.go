@@ -81,7 +81,8 @@ func NewLocker(ddbAPI dynamodbiface.DynamoDBAPI, tableName string, logger logger
 
 // UnavailableError represents an attempt to get or update a lock has a different owner
 type UnavailableError struct {
-	Err error
+	Err       error
+	OwnedLock Lock
 }
 
 func (l UnavailableError) Error() string {

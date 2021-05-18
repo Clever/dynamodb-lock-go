@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"gopkg.in/Clever/kayvee-go.v6/logger"
@@ -140,7 +141,7 @@ func TestLocker(t *testing.T) {
 					LeaseDuration: &duration,
 				}
 
-				AcquireAndValidate(ctx, t, locker, input)
+				originalLock := AcquireAndValidate(ctx, t, locker, input)
 
 				duration = 2 * time.Minute
 				input = AcquireLockInput{
@@ -153,6 +154,10 @@ func TestLocker(t *testing.T) {
 					t.Fatalf("new owner was able to acquire unexpired lock")
 				} else if _, ok := err.(UnavailableError); !ok {
 					t.Fatalf("wrong error type when attempting to lock in-use lock")
+				} else {
+					ue := err.(UnavailableError)
+					assert.Equal(t, (*originalLock).Owner, ue.OwnedLock.Owner)
+					assert.WithinDuration(t, (*originalLock).LeasedUntil, ue.OwnedLock.LeasedUntil, 0)
 				}
 			},
 		},

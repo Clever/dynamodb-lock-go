@@ -159,7 +159,7 @@ func (l locker) HeartbeatLock(ctx context.Context, input HeartbeatLockInput) (*L
 
 	var ccfe *dynamodb.ConditionalCheckFailedException
 	if errors.As(err, &ccfe) {
-		return nil, UnavailableError{Err: ccfe}
+		return nil, l.buildUnavailableError(ctx, newLock.Key, ccfe)
 	} else if err != nil {
 		l.logger.ErrorD("unexpected-dynamo-error", logger.M{
 			"error":   err,
@@ -211,7 +211,7 @@ func (l locker) putLockIfAble(ctx context.Context, lock Lock) error {
 
 	var ccfe *dynamodb.ConditionalCheckFailedException
 	if errors.As(err, &ccfe) {
-		return UnavailableError{Err: ccfe}
+		return l.buildUnavailableError(ctx, lock.Key, ccfe)
 	} else if err != nil {
 		l.logger.ErrorD("unexpected-dynamo-error", logger.M{
 			"error":   err,
@@ -257,7 +257,7 @@ func (l locker) deleteLockIfAble(ctx context.Context, lock Lock) error {
 
 	var ccfe *dynamodb.ConditionalCheckFailedException
 	if errors.As(err, &ccfe) {
-		return UnavailableError{Err: ccfe}
+		return l.buildUnavailableError(ctx, lock.Key, ccfe)
 	} else if err != nil {
 		l.logger.ErrorD("unexpected-dynamo-error", logger.M{
 			"error":   err,
@@ -270,6 +270,41 @@ func (l locker) deleteLockIfAble(ctx context.Context, lock Lock) error {
 	}
 
 	return nil
+}
+
+func (l locker) buildUnavailableError(ctx context.Context, key string, err error) error {
+	fetchInput := dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			partitionKeyName: &dynamodb.AttributeValue{
+				S: &key,
+			},
+		},
+		TableName:      aws.String(l.tableName),
+		ConsistentRead: aws.Bool(true),
+	}
+	result, err := l.dynamoDBAPI.GetItemWithContext(ctx, &fetchInput)
+
+	if err != nil {
+		l.logger.ErrorD("unexpected-dynamo-error", logger.M{
+			"error":   err,
+			"message": err.Error(),
+			"type":    fmt.Sprintf("%T", err),
+			"op":      "GetItem",
+			"input":   fetchInput,
+		})
+	}
+
+	var ownedLock Lock
+	if unmarshalErr := dynamodbattribute.UnmarshalMap(result.Item, &ownedLock); unmarshalErr != nil {
+		l.logger.ErrorD("unmarshalling-result-error", logger.M{
+			"error":   unmarshalErr,
+			"message": unmarshalErr.Error(),
+			"type":    fmt.Sprintf("%T", unmarshalErr),
+			"op":      "buildUnavailableError",
+			"result":  result,
+		})
+	}
+	return UnavailableError{Err: err, OwnedLock: ownedLock}
 }
 
 func (l locker) StartBackgroundHeartbeats(ctx context.Context, lock *Lock, heartbeatInterval time.Duration, leaseDuration time.Duration) <-chan error {
