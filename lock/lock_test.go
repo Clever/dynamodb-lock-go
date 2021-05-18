@@ -363,6 +363,43 @@ func TestLocker(t *testing.T) {
 				assert.WithinDuration(t, now, newLock.CreatedAt, 500*time.Millisecond)
 			},
 		},
+		{
+			description: "getCurrentLock for existing lock",
+			testFn: func(t *testing.T) {
+				ctx := context.Background()
+				duration := 5 * time.Minute
+				input := AcquireLockInput{
+					Key:           "key1",
+					Owner:         "owner1",
+					LeaseDuration: &duration,
+				}
+
+				lockedAt := time.Now()
+				AcquireAndValidate(ctx, t, locker, input)
+
+				lock, err := locker.GetCurrentLock(ctx, "key1")
+				assert.Nil(t, err)
+				assert.NotNil(t, lock)
+				assert.Equal(t, "owner1", lock.Owner)
+				assert.Equal(t, "key1", lock.Key)
+				if err := ValidateLeaseEndFromDuration(*input.LeaseDuration, *lock); err != nil {
+					t.Fatalf("%v", err)
+				}
+				if err = ValidateTTL(*lock); err != nil {
+					t.Fatalf("%v", err)
+				}
+				assert.WithinDuration(t, lockedAt, lock.CreatedAt, 500*time.Millisecond)
+			},
+		},
+		{
+			description: "getCurrentLock for missing lock",
+			testFn: func(t *testing.T) {
+				ctx := context.Background()
+				lock, err := locker.GetCurrentLock(ctx, "not-locked")
+				assert.Nil(t, lock)
+				assert.Nil(t, err)
+			},
+		},
 	}
 
 	for _, testcase := range testcases {

@@ -1,6 +1,7 @@
-v0.2.0
+v0.3.0
 
-Add createdAt to locks
+Add GetCurrentLock
 
 Previously:
+- Add createdAt to locks
 - Initial release!
