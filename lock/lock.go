@@ -307,3 +307,38 @@ func randomizedCopy(keys []string) []string {
 	})
 	return randomizedKeys
 }
+
+func (l locker) GetCurrentLock(ctx context.Context, key string) (*Lock, error) {
+	getInput := dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			partitionKeyName: &dynamodb.AttributeValue{
+				S: &key,
+			},
+		},
+		TableName:      aws.String(l.tableName),
+		ConsistentRead: aws.Bool(true),
+	}
+
+	result, err := l.dynamoDBAPI.GetItemWithContext(ctx, &getInput)
+
+	if err != nil {
+		l.logger.ErrorD("unexpected-dynamo-error", logger.M{
+			"error":   err,
+			"message": err.Error(),
+			"type":    fmt.Sprintf("%T", err),
+			"op":      "GetCurrentLock",
+			"input":   getInput,
+		})
+		return nil, err
+	}
+
+	if len(result.Item) == 0 {
+		return nil, nil
+	}
+
+	var lock Lock
+	if unmarshalErr := dynamodbattribute.UnmarshalMap(result.Item, &lock); unmarshalErr != nil {
+		return nil, fmt.Errorf("failed to DynamoDB unmarshal Record, %v", unmarshalErr)
+	}
+	return &lock, nil
+}

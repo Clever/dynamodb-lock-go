@@ -59,6 +59,11 @@ type Locker interface {
 	// If the lock is held by someone else, that's generally not retryable, and that is represented by the error type UnavailableError. In this case, the caller can be certain that the caller does not still hold the lock.
 	// Any other error type could indicate that caller still holds the lock e.g. if there were a dynamo system error.
 	ReleaseLock(ctx context.Context, lock Lock) error
+
+	// GetCurrentLock will return the current lock for a key.  This is meant to help troubleshoot lock starvation.
+	// If there is no lock, nil will be returned for both lock and error
+	// This should not be used to "pre-check" for a lock as AcquireLock may still fail.
+	GetCurrentLock(ctx context.Context, key string) (*Lock, error)
 }
 
 // Lock is a representation of a row in the lock table.
