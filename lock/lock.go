@@ -70,6 +70,7 @@ func (l locker) AcquireLock(ctx context.Context, input AcquireLockInput) (*Lock,
 		Key:         input.Key,
 		LeasedUntil: leaseEnd,
 		TTL:         leaseEnd.Add(ttlDurationAfterLease),
+		CreatedAt:   time.Now(),
 	}
 
 	err := l.putLockIfAble(ctx, newLock)
@@ -127,6 +128,7 @@ func (l locker) HeartbeatLock(ctx context.Context, input HeartbeatLockInput) (*L
 		Key:         input.OriginalLock.Key,
 		LeasedUntil: leaseEnd,
 		TTL:         leaseEnd.Add(ttlDurationAfterLease),
+		CreatedAt:   time.Now(),
 	}
 
 	item, err := dynamodbattribute.MarshalMap(newLock)
