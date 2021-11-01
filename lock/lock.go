@@ -279,19 +279,22 @@ func (l locker) StartBackgroundHeartbeats(ctx context.Context, lock *Lock, heart
 	go func() {
 		ticker := time.NewTicker(heartbeatInterval)
 		defer ticker.Stop()
-		select {
-		case <-ticker.C:
-			newLock, err := l.HeartbeatLock(ctx, HeartbeatLockInput{
-				OriginalLock:  *lock,
-				LeaseDuration: &leaseDuration,
-			})
-			if err != nil {
-				errChan <- fmt.Errorf("heartbeat error: %w", err)
+		for {
+			select {
+			case <-ticker.C:
+				newLock, err := l.HeartbeatLock(ctx, HeartbeatLockInput{
+					OriginalLock:  *lock,
+					LeaseDuration: &leaseDuration,
+				})
+				if err != nil {
+					errChan <- fmt.Errorf("heartbeat error: %w", err)
+					return
+				}
+				*lock = *newLock
+			case <-ctx.Done():
+				close(errChan)
 				return
 			}
-			*lock = *newLock
-		case <-ctx.Done():
-			return
 		}
 	}()
 	return errChan
