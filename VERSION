@@ -1,8 +1,9 @@
-v0.3.1
+v0.3.2
 
-Bugfix: actually loop in the StartBackgroundHeartbeats loop.
+Bugfix: use UTC for all times in DynamoDB, regardless of client's local time.
 
 Previously:
+- Bugfix: actually loop in the StartBackgroundHeartbeats loop.
 - Add GetCurrentLock
 - Add createdAt to locks
 - Initial release!
