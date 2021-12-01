@@ -38,7 +38,7 @@ func (l locker) canAcquireLockExpression(owner string, leaseExpiredBefore time.T
 	// - item exists, and we own it
 
 	doesntExist := expression.Name(partitionKeyName).AttributeNotExists()
-	expired := expression.Name(leaseEndAttribute).LessThan(expression.Value(leaseExpiredBefore))
+	expired := expression.Name(leaseEndAttribute).LessThan(expression.Value(leaseExpiredBefore.UTC()))
 	ownedByUs := expression.Name("owner").Equal(expression.Value(owner))
 
 	return expression.NewBuilder().WithCondition(expression.Or(doesntExist, expired, ownedByUs))
@@ -62,7 +62,7 @@ func (l locker) AcquireLock(ctx context.Context, input AcquireLockInput) (*Lock,
 	if input.LeaseEnd != nil {
 		leaseEnd = *input.LeaseEnd
 	} else if input.LeaseDuration != nil {
-		leaseEnd = time.Now().Add(*input.LeaseDuration)
+		leaseEnd = time.Now().UTC().Add(*input.LeaseDuration)
 	}
 
 	newLock := Lock{
@@ -70,7 +70,7 @@ func (l locker) AcquireLock(ctx context.Context, input AcquireLockInput) (*Lock,
 		Key:         input.Key,
 		LeasedUntil: leaseEnd,
 		TTL:         leaseEnd.Add(ttlDurationAfterLease),
-		CreatedAt:   time.Now(),
+		CreatedAt:   time.Now().UTC(),
 	}
 
 	err := l.putLockIfAble(ctx, newLock)
@@ -120,7 +120,7 @@ func (l locker) HeartbeatLock(ctx context.Context, input HeartbeatLockInput) (*L
 	if input.LeaseEnd != nil {
 		leaseEnd = *input.LeaseEnd
 	} else if input.LeaseDuration != nil {
-		leaseEnd = time.Now().Add(*input.LeaseDuration)
+		leaseEnd = time.Now().UTC().Add(*input.LeaseDuration)
 	}
 
 	newLock := Lock{
@@ -128,7 +128,7 @@ func (l locker) HeartbeatLock(ctx context.Context, input HeartbeatLockInput) (*L
 		Key:         input.OriginalLock.Key,
 		LeasedUntil: leaseEnd,
 		TTL:         leaseEnd.Add(ttlDurationAfterLease),
-		CreatedAt:   time.Now(),
+		CreatedAt:   time.Now().UTC(),
 	}
 
 	item, err := dynamodbattribute.MarshalMap(newLock)
@@ -138,7 +138,7 @@ func (l locker) HeartbeatLock(ctx context.Context, input HeartbeatLockInput) (*L
 
 	// In order to work around clock desynchronization a little, we allow a grace period:
 	//   we'll only take a lease if it's been expired for gracePeriod duration
-	leaseExpiredBefore := time.Now().Add(-gracePeriod)
+	leaseExpiredBefore := time.Now().UTC().Add(-gracePeriod)
 
 	canHeartbeatExpression, err := l.canHeartbeatLockExpression(input.OriginalLock.Owner, leaseExpiredBefore).Build()
 	if err != nil {
@@ -190,7 +190,7 @@ func (l locker) putLockIfAble(ctx context.Context, lock Lock) error {
 
 	// In order to work around clock desynchronization a little, we allow a grace period:
 	//   we'll only take a lease if it's been expired for gracePeriod duration
-	leaseExpiredBefore := time.Now().Add(-gracePeriod)
+	leaseExpiredBefore := time.Now().UTC().Add(-gracePeriod)
 
 	canAcquireExpression, err := l.canAcquireLockExpression(lock.Owner, leaseExpiredBefore).Build()
 	if err != nil {
@@ -232,7 +232,7 @@ func (l locker) deleteLockIfAble(ctx context.Context, lock Lock) error {
 
 	// In order to work around clock desynchronization a little, we allow a grace period:
 	//   we'll only take a lease if it's been expired for gracePeriod duration
-	leaseExpiredBefore := time.Now().Add(-gracePeriod)
+	leaseExpiredBefore := time.Now().UTC().Add(-gracePeriod)
 
 	canAcquireExpression, err := l.canAcquireLockExpression(lock.Owner, leaseExpiredBefore).Build()
 	if err != nil {
@@ -301,7 +301,7 @@ func (l locker) StartBackgroundHeartbeats(ctx context.Context, lock *Lock, heart
 }
 
 func randomizedCopy(keys []string) []string {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	randomizedKeys := make([]string, len(keys))
 	copy(randomizedKeys, keys)
 

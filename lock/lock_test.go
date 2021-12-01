@@ -400,6 +400,51 @@ func TestLocker(t *testing.T) {
 				assert.Nil(t, err)
 			},
 		},
+		{
+			description: "Put lock in a different timezone",
+			testFn: func(t *testing.T) {
+				// We have seen an error where a lock acquired while in UTC-8 was able to be
+				// acquired by a different user in UTC because of doing a string comparison between
+				// the RFC3339 for the UTC-8 time and the UTC time
+				// E.g. one client would write the lease time as 2021-11-18T10:00.0000-08:00 (UTC-8)
+				// then another client would do a string comparsion to 2021-11-18T15:00:00.000Z (UTC)
+				// The second time is in the before the first time, so the lock is still leased, but
+				// the naive string comparison sees that the first string is less.
+				// Since then, we've changed locks to always use UTC, so here's a simple regression test.
+				ctx := context.Background()
+				duration := 5 * time.Minute
+				input := AcquireLockInput{
+					Key:           "key1",
+					Owner:         "owner1",
+					LeaseDuration: &duration,
+				}
+
+				originalLocal := time.Local
+				loc, err := time.LoadLocation("America/Los_Angeles")
+				if err != nil {
+					t.Fatalf("loading location: %v", err)
+				}
+				defer func() {
+					time.Local = originalLocal
+				}()
+				time.Local = loc
+				AcquireAndValidate(ctx, t, locker, input)
+
+				time.Local = originalLocal
+				duration = 2 * time.Minute
+				input = AcquireLockInput{
+					Key:           "key1",
+					Owner:         "owner2",
+					LeaseDuration: &duration,
+				}
+				_, err = locker.AcquireLock(ctx, input)
+				if err == nil {
+					t.Fatalf("new owner was able to acquire unexpired lock")
+				} else if _, ok := err.(UnavailableError); !ok {
+					t.Fatalf("wrong error type when attempting to lock in-use lock")
+				}
+			},
+		},
 	}
 
 	for _, testcase := range testcases {
