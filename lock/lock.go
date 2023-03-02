@@ -7,13 +7,13 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/Clever/kayvee-go/v7/logger"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 	"github.com/hashicorp/go-multierror"
-	"gopkg.in/Clever/kayvee-go.v6/logger"
 )
 
 const gracePeriod = 5 * time.Second
