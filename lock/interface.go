@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Clever/kayvee-go/v7/logger"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"gopkg.in/Clever/kayvee-go.v6/logger"
 )
 
 // Locker is an interface for acquiring and releasing locks on keys with support for automatic lock expiration via leases.

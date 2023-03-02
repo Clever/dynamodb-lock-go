@@ -1,8 +1,9 @@
-v0.3.2
-
-Bugfix: use UTC for all times in DynamoDB, regardless of client's local time.
+v0.4.2
+Kayvee Upgrade to v7
 
 Previously:
+- Bugfix: use UTC for all times in DynamoDB, regardless of client's local time.
+
 - Bugfix: actually loop in the StartBackgroundHeartbeats loop.
 - Add GetCurrentLock
 - Add createdAt to locks
