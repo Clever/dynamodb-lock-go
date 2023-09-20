@@ -244,7 +244,7 @@ func (l locker) deleteLockIfAble(ctx context.Context, lock Lock) error {
 		ExpressionAttributeNames:  canAcquireExpression.Names(),
 		ExpressionAttributeValues: canAcquireExpression.Values(),
 		Key: map[string]*dynamodb.AttributeValue{
-			partitionKeyName: &dynamodb.AttributeValue{
+			partitionKeyName: {
 				S: &lock.Key,
 			},
 		},
@@ -314,7 +314,7 @@ func randomizedCopy(keys []string) []string {
 func (l locker) GetCurrentLock(ctx context.Context, key string) (*Lock, error) {
 	getInput := dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
-			partitionKeyName: &dynamodb.AttributeValue{
+			partitionKeyName: {
 				S: &key,
 			},
 		},
