@@ -1,6 +1,6 @@
 module github.com/Clever/dynamodb-lock-go
 
-go 1.21
+go 1.24
 
 require (
 	github.com/Clever/kayvee-go/v7 v7.7.0
