@@ -8,26 +8,45 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsV2Config "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	ddbTypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Clever/kayvee-go/v7/logger"
 )
 
+type dynamodbTestAPI interface {
+	DescribeTable(ctx context.Context, params *dynamodb.DescribeTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error)
+	CreateTable(ctx context.Context, params *dynamodb.CreateTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.CreateTableOutput, error)
+	DeleteTable(ctx context.Context, params *dynamodb.DeleteTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteTableOutput, error)
+
+	Scan(ctx context.Context, params *dynamodb.ScanInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ScanOutput, error)
+}
+
 func TestLocker(t *testing.T) {
 	if _, set := os.LookupEnv("INTEGRATION_TEST"); !set {
 		t.Skip()
 	}
 
-	dynamoService := dynamodb.New(session.Must(session.NewSessionWithOptions(session.Options{
-		Config: aws.Config{
-			Region:   aws.String("us-west-1"),
-			Endpoint: aws.String("http://localhost:8000"),
-		},
-	})))
+	ctx := context.Background()
+	ddbCfg, err := awsV2Config.LoadDefaultConfig(
+		ctx,
+		awsV2Config.WithRegion("us-west-1"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dynamoService := dynamodb.NewFromConfig(
+		ddbCfg,
+		func(o *dynamodb.Options) {
+			o.BaseEndpoint = aws.String("https://localhost:8080/")
+		})
+
 	tableName := "EnvironmentLocks"
 
 	// if the log is too noisy, call kvLogger.SetLogLevel(logger.Warning)
@@ -36,7 +55,7 @@ func TestLocker(t *testing.T) {
 
 	type testcase struct {
 		description  string
-		prepareTable func(*dynamodb.DynamoDB) error
+		prepareTable func(dynamodbTestAPI) error
 		testFn       func(*testing.T)
 	}
 
@@ -448,19 +467,20 @@ func TestLocker(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
-		err := createTable(t, dynamoService, tableName)
+		testCtx := context.WithoutCancel(ctx)
+		err := createTable(testCtx, t, dynamoService, tableName)
 		if err != nil {
 			t.Fatalf("creating table: %v", err)
 		}
 		if testcase.prepareTable != nil {
-			testcase.prepareTable(dynamoService)
+			_ = testcase.prepareTable(dynamoService)
 		}
 		success := t.Run(testcase.description, testcase.testFn)
 		if !success {
-			s, _ := scanTable(dynamoService, tableName)
+			s, _ := scanTable(testCtx, dynamoService, tableName)
 			t.Logf("table:\n%s", s)
 		}
-		err = deleteTable(t, dynamoService, tableName)
+		err = deleteTable(testCtx, t, dynamoService, tableName)
 		if err != nil {
 			t.Fatalf("delete table: %v", err)
 		}
@@ -508,23 +528,23 @@ func AcquireAndValidate(ctx context.Context, t *testing.T, l Locker, input Acqui
 	return lock
 }
 
-func createTable(t *testing.T, ddb *dynamodb.DynamoDB, tableName string) error {
-	_, err := ddb.CreateTable(&dynamodb.CreateTableInput{
+func createTable(ctx context.Context, t *testing.T, ddb dynamodbTestAPI, tableName string) error {
+	_, err := ddb.CreateTable(ctx, &dynamodb.CreateTableInput{
 		TableName:        &tableName,
-		SSESpecification: &dynamodb.SSESpecification{Enabled: aws.Bool(true)},
-		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+		SSESpecification: &ddbTypes.SSESpecification{Enabled: aws.Bool(true)},
+		AttributeDefinitions: []ddbTypes.AttributeDefinition{
 			{
 				AttributeName: aws.String("key"),
-				AttributeType: aws.String("S"),
+				AttributeType: "S",
 			},
 		},
-		KeySchema: []*dynamodb.KeySchemaElement{
+		KeySchema: []ddbTypes.KeySchemaElement{
 			{
 				AttributeName: aws.String("key"),
-				KeyType:       aws.String("HASH"),
+				KeyType:       "HASH",
 			},
 		},
-		BillingMode: aws.String("PAY_PER_REQUEST"),
+		BillingMode: "PAY_PER_REQUEST",
 	})
 
 	if err != nil {
@@ -534,7 +554,7 @@ func createTable(t *testing.T, ddb *dynamodb.DynamoDB, tableName string) error {
 
 	var tries int
 	for tries = 0; tries < 3; tries++ {
-		_, err := ddb.DescribeTable(&dynamodb.DescribeTableInput{
+		_, err := ddb.DescribeTable(ctx, &dynamodb.DescribeTableInput{
 			TableName: &tableName,
 		})
 		if err != nil {
@@ -550,8 +570,8 @@ func createTable(t *testing.T, ddb *dynamodb.DynamoDB, tableName string) error {
 	return nil
 }
 
-func deleteTable(t *testing.T, ddb *dynamodb.DynamoDB, tableName string) error {
-	_, err := ddb.DeleteTable(&dynamodb.DeleteTableInput{
+func deleteTable(ctx context.Context, t *testing.T, ddb dynamodbTestAPI, tableName string) error {
+	_, err := ddb.DeleteTable(ctx, &dynamodb.DeleteTableInput{
 		TableName: &tableName,
 	})
 
@@ -562,7 +582,7 @@ func deleteTable(t *testing.T, ddb *dynamodb.DynamoDB, tableName string) error {
 
 	var tries int
 	for tries = 0; tries < 3; tries++ {
-		_, err := ddb.DescribeTable(&dynamodb.DescribeTableInput{
+		_, err := ddb.DescribeTable(ctx, &dynamodb.DescribeTableInput{
 			TableName: &tableName,
 		})
 		if err == nil {
@@ -578,8 +598,8 @@ func deleteTable(t *testing.T, ddb *dynamodb.DynamoDB, tableName string) error {
 	return nil
 }
 
-func scanTable(ddb *dynamodb.DynamoDB, tableName string) (string, error) {
-	scanOut, err := ddb.Scan(&dynamodb.ScanInput{
+func scanTable(ctx context.Context, ddb dynamodbTestAPI, tableName string) (string, error) {
+	scanOut, err := ddb.Scan(ctx, &dynamodb.ScanInput{
 		TableName: &tableName,
 	})
 

@@ -8,12 +8,14 @@ import (
 	"time"
 
 	"github.com/Clever/kayvee-go/v7/logger"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
+
 	"github.com/hashicorp/go-multierror"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	ddbTypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 const gracePeriod = 5 * time.Second
@@ -25,8 +27,15 @@ const (
 	partitionKeyName  = "key"
 )
 
+// DynamoDBAPI is a wrapper interface describing the necessary client functions to support locker
+type DynamoDBAPI interface {
+	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
+	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
+	DeleteItem(ctx context.Context, params *dynamodb.DeleteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
+}
+
 type locker struct {
-	dynamoDBAPI dynamodbiface.DynamoDBAPI
+	dynamoDBAPI DynamoDBAPI
 	tableName   string
 	logger      logger.KayveeLogger
 }
@@ -131,7 +140,7 @@ func (l locker) HeartbeatLock(ctx context.Context, input HeartbeatLockInput) (*L
 		CreatedAt:   time.Now().UTC(),
 	}
 
-	item, err := dynamodbattribute.MarshalMap(newLock)
+	item, err := attributevalue.MarshalMap(newLock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to DynamoDB marshal Record, %v", err)
 	}
@@ -157,9 +166,9 @@ func (l locker) HeartbeatLock(ctx context.Context, input HeartbeatLockInput) (*L
 		"input": putInput,
 	})
 
-	_, err = l.dynamoDBAPI.PutItemWithContext(ctx, &putInput)
+	_, err = l.dynamoDBAPI.PutItem(ctx, &putInput)
 
-	var ccfe *dynamodb.ConditionalCheckFailedException
+	var ccfe *ddbTypes.ConditionalCheckFailedException
 	if errors.As(err, &ccfe) {
 		return nil, UnavailableError{Err: ccfe}
 	} else if err != nil {
@@ -183,7 +192,7 @@ func (l locker) ReleaseLock(ctx context.Context, lock Lock) error {
 }
 
 func (l locker) putLockIfAble(ctx context.Context, lock Lock) error {
-	item, err := dynamodbattribute.MarshalMap(lock)
+	item, err := attributevalue.MarshalMap(lock)
 	if err != nil {
 		return fmt.Errorf("failed to DynamoDB marshal Record, %v", err)
 	}
@@ -209,9 +218,9 @@ func (l locker) putLockIfAble(ctx context.Context, lock Lock) error {
 		"input": putInput,
 	})
 
-	_, err = l.dynamoDBAPI.PutItemWithContext(ctx, &putInput)
+	_, err = l.dynamoDBAPI.PutItem(ctx, &putInput)
 
-	var ccfe *dynamodb.ConditionalCheckFailedException
+	var ccfe *ddbTypes.ConditionalCheckFailedException
 	if errors.As(err, &ccfe) {
 		return UnavailableError{Err: ccfe}
 	} else if err != nil {
@@ -243,9 +252,9 @@ func (l locker) deleteLockIfAble(ctx context.Context, lock Lock) error {
 		ConditionExpression:       canAcquireExpression.Condition(),
 		ExpressionAttributeNames:  canAcquireExpression.Names(),
 		ExpressionAttributeValues: canAcquireExpression.Values(),
-		Key: map[string]*dynamodb.AttributeValue{
-			partitionKeyName: &dynamodb.AttributeValue{
-				S: &lock.Key,
+		Key: map[string]ddbTypes.AttributeValue{
+			partitionKeyName: &ddbTypes.AttributeValueMemberS{
+				Value: lock.Key,
 			},
 		},
 	}
@@ -255,9 +264,9 @@ func (l locker) deleteLockIfAble(ctx context.Context, lock Lock) error {
 		"input": deleteInput,
 	})
 
-	_, err = l.dynamoDBAPI.DeleteItemWithContext(ctx, &deleteInput)
+	_, err = l.dynamoDBAPI.DeleteItem(ctx, &deleteInput)
 
-	var ccfe *dynamodb.ConditionalCheckFailedException
+	var ccfe *ddbTypes.ConditionalCheckFailedException
 	if errors.As(err, &ccfe) {
 		return UnavailableError{Err: ccfe}
 	} else if err != nil {
@@ -313,16 +322,16 @@ func randomizedCopy(keys []string) []string {
 
 func (l locker) GetCurrentLock(ctx context.Context, key string) (*Lock, error) {
 	getInput := dynamodb.GetItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			partitionKeyName: &dynamodb.AttributeValue{
-				S: &key,
+		Key: map[string]ddbTypes.AttributeValue{
+			partitionKeyName: &ddbTypes.AttributeValueMemberS{
+				Value: key,
 			},
 		},
 		TableName:      aws.String(l.tableName),
 		ConsistentRead: aws.Bool(true),
 	}
 
-	result, err := l.dynamoDBAPI.GetItemWithContext(ctx, &getInput)
+	result, err := l.dynamoDBAPI.GetItem(ctx, &getInput)
 
 	if err != nil {
 		l.logger.ErrorD("unexpected-dynamo-error", logger.M{
@@ -340,7 +349,7 @@ func (l locker) GetCurrentLock(ctx context.Context, key string) (*Lock, error) {
 	}
 
 	var lock Lock
-	if unmarshalErr := dynamodbattribute.UnmarshalMap(result.Item, &lock); unmarshalErr != nil {
+	if unmarshalErr := attributevalue.UnmarshalMap(result.Item, &lock); unmarshalErr != nil {
 		return nil, fmt.Errorf("failed to DynamoDB unmarshal Record, %v", unmarshalErr)
 	}
 	return &lock, nil
