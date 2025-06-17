@@ -44,7 +44,7 @@ func TestLocker(t *testing.T) {
 	dynamoService := dynamodb.NewFromConfig(
 		ddbCfg,
 		func(o *dynamodb.Options) {
-			o.BaseEndpoint = aws.String("https://localhost:8080/")
+			o.BaseEndpoint = aws.String("http://localhost:8000")
 		})
 
 	tableName := "EnvironmentLocks"
