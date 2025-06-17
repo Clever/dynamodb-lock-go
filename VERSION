@@ -1,7 +1,9 @@
-v0.4.2
-Kayvee Upgrade to v7
+v1.0.0
+Major version bump because the aws sdk for go is being upgraded to v2, which includes several interface changes.
 
 Previously:
+- Kayvee Upgrade to v7
+
 - Bugfix: use UTC for all times in DynamoDB, regardless of client's local time.
 
 - Bugfix: actually loop in the StartBackgroundHeartbeats loop.
