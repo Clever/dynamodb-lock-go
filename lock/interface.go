@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/Clever/kayvee-go/v7/logger"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
 // Locker is an interface for acquiring and releasing locks on keys with support for automatic lock expiration via leases.
@@ -77,7 +76,7 @@ type Lock struct {
 }
 
 // NewLocker returns a Locker which talks to the given DynamoDB table using the given DynamoDBAPI, and logs to the given logger.
-func NewLocker(ddbAPI dynamodbiface.DynamoDBAPI, tableName string, logger logger.KayveeLogger) Locker {
+func NewLocker(ddbAPI DynamoDBAPI, tableName string, logger logger.KayveeLogger) Locker {
 	return &locker{
 		dynamoDBAPI: ddbAPI,
 		tableName:   tableName,
