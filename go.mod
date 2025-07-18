@@ -3,7 +3,7 @@ module github.com/Clever/dynamodb-lock-go
 go 1.24
 
 require (
-	github.com/Clever/kayvee-go/v7 v7.10.0
+	github.com/Clever/kayvee-go/v7 v7.11.0
 	github.com/aws/aws-sdk-go-v2 v1.36.5
 	github.com/aws/aws-sdk-go-v2/config v1.29.17
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.19.3
