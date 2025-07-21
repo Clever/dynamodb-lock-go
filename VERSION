@@ -1,4 +1,4 @@
-v1.0.0
+v1.1.0
 Major version bump because the aws sdk for go is being upgraded to v2, which includes several interface changes.
 
 Previously:

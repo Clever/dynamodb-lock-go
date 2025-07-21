@@ -1,5 +1,5 @@
-github.com/Clever/kayvee-go/v7 v7.10.0 h1:9naO0/Uvm7D408a9tnVK8aKwalzVvSN0E0cPIuHYItk=
-github.com/Clever/kayvee-go/v7 v7.10.0/go.mod h1:zecUqdWdRd/juMffdsb0QAAG4FlpV/RTvgfShg7eXGw=
+github.com/Clever/kayvee-go/v7 v7.11.0 h1:82TpKN2YhlK/06ZI56CyEHj8VFKiVdCYAEdp7qW1Yo4=
+github.com/Clever/kayvee-go/v7 v7.11.0/go.mod h1:14jjHwvvI7bIH7is4y1b/Rl5Yl3Us47xfdVWbg/YwZQ=
 github.com/Clever/wag/logging/wagclientlogger v0.0.0-20220916194010-36f974d66e08 h1:hr8vR3NyIrxMKFOUzqMY5y1VboQaT2Lia4RXVvogLfM=
 github.com/Clever/wag/logging/wagclientlogger v0.0.0-20220916194010-36f974d66e08/go.mod h1:NPerIFemV/7da/vNGALWkky+mit4ulSa24NSalIXgpo=
 github.com/aws/aws-sdk-go-v2 v1.36.5 h1:0OF9RiEMEdDdZEMqF9MRjevyxAQcf6gY+E7vwBILFj0=
