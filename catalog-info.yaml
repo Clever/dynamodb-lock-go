@@ -1,0 +1,11 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dynamodb-lock-go
+  description: Go client library for distributed locking using a DynamoDB backend
+  owner: eng-infra
+spec:
+  type: unknown
+  lifecycle: production
+  owner: eng-infra
+  system: Clever
